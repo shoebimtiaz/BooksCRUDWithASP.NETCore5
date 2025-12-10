@@ -1,14 +1,10 @@
+using Azure.Storage.Blobs;
 using BooksCRUD.Data.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.HttpsPolicy;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace BooksCRUD.Web
 {
@@ -24,6 +20,8 @@ namespace BooksCRUD.Web
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
+            services.AddSingleton(x => new BlobServiceClient(Configuration.GetConnectionString("AzureBlobStorage")));
+            services.AddScoped<IBlobService, BlobService>();
             services.AddControllersWithViews();
             services.AddScoped<IBookData, SqlBookData>();
         }
