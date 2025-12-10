@@ -1,38 +1,45 @@
-﻿@model BooksCRUD.Data.Models.Book
+﻿@using BooksCRUD.Data.Utilities
+@model BooksCRUD.Data.Models.Book
 
 @{
     ViewData["Title"] = "Delete";
 }
 
-<h1>Delete</h1>
+<h1 class="mb-4">Delete Book</h1>
 
-<h3>Are you sure you want to delete @Model.Name?</h3>
-<div>
+<h4 class="text-danger mb-4">Are you sure you want to delete <strong>@Model.Name</strong>?</h4>
 
-    <hr />
-    <dl class="row">
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.Name)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.Name)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.Author)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.Author)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.Publisher)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.Publisher)
-        </dd>
-    </dl>
-    
-    <form asp-action="Delete">
-        <input type="submit" value="Delete" class="btn btn-danger" /> |
-        <a asp-action="Index">Back to List</a>
-    </form>
+<div class="card shadow-sm p-4 mb-4">
+    <div class="row">
+
+        <!-- LEFT COLUMN: IMAGE -->
+        <div class="col-md-4 text-center">
+            <img src="@BookImageHelper.GetImageUrl(Model.ImageBlobName, Model.ImageUpdatedAt)"
+                 alt="@Model.Name"
+                 class="img-fluid rounded"
+                 style="max-height: 260px; object-fit: cover;" />
+        </div>
+
+        <!-- RIGHT COLUMN: DETAILS -->
+        <div class="col-md-8">
+            <dl class="row">
+
+                <dt class="col-sm-4 text-muted">Name</dt>
+                <dd class="col-sm-8">@Model.Name</dd>
+
+                <dt class="col-sm-4 text-muted">Author</dt>
+                <dd class="col-sm-8">@Model.Author</dd>
+
+                <dt class="col-sm-4 text-muted">Publisher</dt>
+                <dd class="col-sm-8">@Model.Publisher</dd>
+
+            </dl>
+        </div>
+
+    </div>
 </div>
+
+<form asp-action="Delete">
+    <button type="submit" class="btn btn-danger btn-lg">Delete</button>
+    <a asp-action="Index" class="btn btn-secondary btn-lg ms-2">Cancel</a>
+</form>

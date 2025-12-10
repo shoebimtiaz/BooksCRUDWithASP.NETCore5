@@ -1,33 +1,48 @@
 ﻿@model IEnumerable<BooksCRUD.Data.Models.Book>
 
-@{ 
-    ViewData["Title"] = "Index";
-    Layout = "~/Views/Shared/_Layout.cshtml";
+@using BooksCRUD.Data.Utilities
+
+@{
+    ViewData["Title"] = "Books";
 }
 
-<h1>Index</h1>
-<p><a asp-action="Create">Create New</a></p>
+<h1 class="mb-4">Books</h1>
 
-<table class="table">
-    <thead>
-        <tr>
-            <th>@Html.DisplayNameFor(model => model.Name)</th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach(var item in Model)
-        {
-            <tr>
-                <td>
-                    @Html.DisplayFor(model => item.Name)
-                </td>
-                <td>
-                    <a asp-action="Edit" asp-route-id="@item.Id">Edit |</a>
-                    <a asp-action="Details" asp-route-id="@item.Id"> Details |</a>
-                    <a asp-action="Delete" asp-route-id="@item.Id"> Delete</a>
-                </td>
-            </tr>
-        }
-    </tbody>
+<p>
+    <a asp-action="Create" class="btn btn-success btn-lg">Create New Book</a>
+</p>
 
-</table>
+<div class="row row-cols-1 row-cols-md-2 g-4">
+    @foreach (var book in Model)
+    {
+        <div class="col">
+            <div class="card shadow-sm h-100">
+                <div class="row g-0">
+
+                    <!-- IMAGE COLUMN -->
+                    <div class="col-md-4 text-center p-2">
+                        <img src="@BookImageHelper.GetImageUrl(book.ImageBlobName, book.ImageUpdatedAt)"
+                             alt="@book.Name"
+                             class="img-fluid rounded"
+                             style="max-height: 200px; object-fit: cover;" />
+                    </div>
+
+                    <!-- DETAILS COLUMN -->
+                    <div class="col-md-8">
+                        <div class="card-body">
+                            <h5 class="card-title">@book.Name</h5>
+                            <p class="card-text mb-1"><strong>Author:</strong> @book.Author</p>
+                            <p class="card-text mb-1"><strong>Publisher:</strong> @book.Publisher</p>
+                            <div class="mt-2">
+                                <a asp-action="Edit" asp-route-id="@book.Id" class="btn btn-primary btn-sm">Edit</a>
+                                <a asp-action="Details" asp-route-id="@book.Id" class="btn btn-info btn-sm ms-1">Details</a>
+                                <a asp-action="Delete" asp-route-id="@book.Id" class="btn btn-danger btn-sm ms-1">Delete</a>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    }
+</div>

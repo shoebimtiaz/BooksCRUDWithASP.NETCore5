@@ -1,22 +1,18 @@
-﻿using System.Threading.Tasks;
+﻿using System;
+using System.Threading.Tasks;
 using BooksCRUD.Data.Models;
 using BooksCRUD.Data.Services;
+using BooksCRUD.Data.Utilities;  
 using BooksCRUD.Web.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BooksCRUD.Web.Controllers
 {
-    public class BookController : Controller
+    public class BookController(IBookData bookData, IBlobService blobService) : Controller
     {
-        private readonly IBookData _bookData;
-        private readonly IBlobService _blobService;
-
-        public BookController(IBookData bookData, IBlobService blobService)
-        {
-            _bookData = bookData;
-            _blobService = blobService;
-        }
+        private readonly IBookData _bookData = bookData;
+        private readonly IBlobService _blobService = blobService;
 
         public IActionResult Index()
         {
@@ -31,13 +27,24 @@ namespace BooksCRUD.Web.Controllers
             {
                 return View("NotFound");
             }
+
             return View(book);
         }
 
         public IActionResult Edit(int id)
         {
             var book = _bookData.GetById(id);
-            return View(book);
+            if (book == null) return View("NotFound");
+
+            var vm = new BookCreateViewModel
+            {
+                Name = book.Name,
+                Author = book.Author,
+                Publisher = book.Publisher,
+                ExistingImage = BookImageHelper.GetImageUrl(book.ImageBlobName, book.ImageUpdatedAt)
+            };
+
+            return View(vm);
         }
 
         [HttpPost]
@@ -55,30 +62,39 @@ namespace BooksCRUD.Web.Controllers
 
                 if (model.Image != null && model.Image.Length > 0)
                 {
-                     using var stream = model.Image.OpenReadStream();
-                    // Optionally delete old image from Blob Storage first
-                    book.ImageUrl = await _blobService.UploadFileAsync(stream, model.Image.FileName);
+                    if (!string.IsNullOrEmpty(book.ImageBlobName))
+                    {
+                        await _blobService.DeleteFileAsync(book.ImageBlobName);
+                    }
+
+                    using var stream = model.Image.OpenReadStream();
+                    var blobName = await _blobService.UploadFileAsync(stream, model.Image.FileName);
+
+                    book.ImageBlobName = blobName;
+                    book.ImageUpdatedAt = DateTime.UtcNow;
                 }
 
                 _bookData.Update(book);
+
                 return RedirectToAction("Details", new { id = book.Id });
             }
+
             return View(model);
         }
-        
+
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(BookCreateViewModel model)
         {
             if (ModelState.IsValid)
             {
-                string? imageUrl = null;
+                string? blobName = null;
 
                 if (model.Image != null && model.Image.Length > 0)
                 {
-                     using var stream = model.Image.OpenReadStream();
-                    // Upload the image to Blob Storage and get URL
-                    imageUrl = await _blobService.UploadFileAsync(stream, model.Image.FileName);
+                    using var stream = model.Image.OpenReadStream();
+                    blobName = await _blobService.UploadFileAsync(stream, model.Image.FileName);
                 }
 
                 var book = new Book
@@ -86,32 +102,42 @@ namespace BooksCRUD.Web.Controllers
                     Name = model.Name,
                     Author = model.Author,
                     Publisher = model.Publisher,
-                    ImageUrl = imageUrl
+                    ImageBlobName = blobName,
+                    ImageUpdatedAt = DateTime.UtcNow
                 };
 
                 _bookData.AddBook(book);
                 TempData["Message"] = "You have added a new book";
+
                 return RedirectToAction("Index");
             }
+
             return View(model);
         }
-
 
         [HttpGet]
         public IActionResult Delete(int id)
         {
-            var model = _bookData.GetById(id);
-            if (model.Id == 0)
-            {
-                return View("NotFound");
-            }
-            return View(model);
+            var book = _bookData.GetById(id);
+            if (book == null) return View("NotFound");
+
+            return View(book);
         }
+
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult Delete(int id, IFormCollection formCollection)
+        public async Task<IActionResult> Delete(int id, IFormCollection _)
         {
+            var book = _bookData.GetById(id);
+            if (book == null) return View("NotFound");
+
+            if (!string.IsNullOrEmpty(book.ImageBlobName))
+            {
+                await _blobService.DeleteFileAsync(book.ImageBlobName);
+            }
+
             _bookData.DeleteBook(id);
+
             return RedirectToAction("Index");
         }
     }

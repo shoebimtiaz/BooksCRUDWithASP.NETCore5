@@ -1,4 +1,6 @@
-﻿namespace BooksCRUD.Data.Models
+﻿using System;
+
+namespace BooksCRUD.Data.Models
 {
     public class Book
     {
@@ -7,6 +9,7 @@
         public string Author { get; set; } = default!;
         public string Publisher { get; set; } = default!;
 
-        public string? ImageUrl { get; set; }  // Store blob URL
+        public string? ImageBlobName { get; set; }  // Store blob URL
+        public DateTime ImageUpdatedAt { get; set; } = DateTime.UtcNow;
     }
 }

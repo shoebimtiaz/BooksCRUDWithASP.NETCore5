@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Http;
+
 namespace BooksCRUD.Web.Models
 {
     public class BookCreateViewModel
@@ -14,5 +15,8 @@ namespace BooksCRUD.Web.Models
         public string Publisher { get; set; } = default!;
 
         public IFormFile? Image { get; set; }
+
+        // NEW: only for Edit view (not required on Create)
+        public string? ExistingImage { get; set; }
     }
 }
