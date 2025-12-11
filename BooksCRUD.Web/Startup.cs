@@ -2,6 +2,7 @@ using Azure.Storage.Blobs;
 using BooksCRUD.Data.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -16,17 +17,25 @@ namespace BooksCRUD.Web
             Configuration = configuration;
         }
 
-
-        // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
+            // Blob storage
             services.AddSingleton(x => new BlobServiceClient(Configuration.GetConnectionString("AzureBlobStorage")));
             services.AddScoped<IBlobService, BlobService>();
-            services.AddControllersWithViews();
+
+            // SQL book data
             services.AddScoped<IBookData, SqlBookData>();
+
+            // Cosmos client singleton
+            services.AddSingleton(x => new CosmosClient(Configuration["CosmosDb:ConnectionString"]));
+
+            // Book log service
+            services.AddScoped<IBookLogService, CosmosBookLogService>();
+
+            // MVC
+            services.AddControllersWithViews();
         }
 
-        // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
             if (env.IsDevelopment())
@@ -36,14 +45,13 @@ namespace BooksCRUD.Web
             else
             {
                 app.UseExceptionHandler("/Home/Error");
-                // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
                 app.UseHsts();
             }
+
             app.UseHttpsRedirection();
             app.UseStaticFiles();
 
             app.UseRouting();
-
             app.UseAuthorization();
 
             app.UseEndpoints(endpoints =>
