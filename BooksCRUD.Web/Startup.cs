@@ -1,4 +1,5 @@
 using Azure.Storage.Blobs;
+using Azure.Storage.Queues;
 using BooksCRUD.Data.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -31,6 +32,13 @@ namespace BooksCRUD.Web
 
             // Book log service
             services.AddScoped<IBookLogService, CosmosBookLogService>();
+
+            services.AddSingleton(x =>
+            {
+                string queueName = "myqueue-items"; // match the queue your Function listens on
+                string connectionString = Configuration.GetConnectionString("AzureBlobStorage"); // same storage account
+                return new QueueClient(connectionString, queueName);
+            });
 
             // MVC
             services.AddControllersWithViews();

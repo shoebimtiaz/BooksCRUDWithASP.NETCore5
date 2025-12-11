@@ -4,8 +4,10 @@ using BooksCRUD.Data.Models;
 using BooksCRUD.Data.Services;
 using BooksCRUD.Data.Utilities;
 using BooksCRUD.Web.Models;
+using Azure.Storage.Queues;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using System.Text.Json;
 
 namespace BooksCRUD.Web.Controllers
 {
@@ -14,12 +16,18 @@ namespace BooksCRUD.Web.Controllers
         private readonly IBookData _bookData;
         private readonly IBlobService _blobService;
         private readonly IBookLogService _logService;
+        private readonly QueueClient _queueClient;
 
-        public BookController(IBookData bookData, IBlobService blobService, IBookLogService logService)
+        public BookController(
+            IBookData bookData,
+            IBlobService blobService,
+            IBookLogService logService,
+            QueueClient queueClient)
         {
             _bookData = bookData;
             _blobService = blobService;
             _logService = logService;
+            _queueClient = queueClient;
         }
 
         public IActionResult Index()
@@ -74,6 +82,11 @@ namespace BooksCRUD.Web.Controllers
                 var blobName = await _blobService.UploadFileAsync(stream, model.Image.FileName);
                 book.ImageBlobName = blobName;
                 book.ImageUpdatedAt = DateTime.UtcNow;
+
+                // Enqueue message for image processing
+                var message = new { BlobName = blobName };
+                string json = JsonSerializer.Serialize(message);
+                await _queueClient.SendMessageAsync(json);
             }
 
             _bookData.Update(book);
@@ -100,6 +113,11 @@ namespace BooksCRUD.Web.Controllers
             {
                 using var stream = model.Image.OpenReadStream();
                 blobName = await _blobService.UploadFileAsync(stream, model.Image.FileName);
+
+                // Enqueue message for image processing
+                var message = new { BlobName = blobName };
+                string json = JsonSerializer.Serialize(message);
+                await _queueClient.SendMessageAsync(json);
             }
 
             var book = new Book
