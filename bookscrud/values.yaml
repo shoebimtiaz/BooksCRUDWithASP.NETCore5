@@ -9,7 +9,7 @@ replicaCount: 1
 image:
   repository: shoebimtiaz/bookscrud
   # This sets the image tag to the chart appVersion.
-  tag: 3be63e51d001a99d9ff166dd2d02e2e0e6d5c979
+  tag: d72e9ea6a92712c451729a237cf81dd29fa17970
   # This sets the pull policy for images.
   pullPolicy: IfNotPresent
 
