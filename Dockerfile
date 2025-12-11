@@ -3,8 +3,8 @@ WORKDIR /app
 COPY *.sln .
 COPY BooksCRUD.Web/*.csproj ./BooksCRUD.Web/
 COPY BooksCRUD.Data/*.csproj ./BooksCRUD.Data/
-COPY BooksCRUD.Image./*.csproj ./BooksCRUD.Image/
-COPY BooksCRUD.Functions/*.csproj ./BooksCRUD.Function/
+COPY BooksCRUD.Image/*.csproj ./BooksCRUD.Image/
+COPY BooksCRUD.Function/*.csproj ./BooksCRUD.Function/
 RUN dotnet restore
 COPY . .
 WORKDIR /app/BooksCRUD.Web
