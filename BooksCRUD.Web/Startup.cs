@@ -25,6 +25,13 @@ namespace BooksCRUD.Web
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddControllersWithViews();
+
+            services.AddStackExchangeRedisCache(options =>
+            {
+                options.Configuration = Configuration["Redis:ConnectionString"];
+                options.InstanceName = Configuration["Redis:InstanceName"];
+            });
+
             services.AddScoped<IBookData, SqlBookData>();
         }
 

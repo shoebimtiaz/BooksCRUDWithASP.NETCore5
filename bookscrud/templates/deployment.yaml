@@ -44,6 +44,11 @@ spec:
           {{- with .Values.env }}
             {{- toYaml . | nindent 12 }}
           {{- end }}
+            - name: SQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "bookscrud.fullname" . }}-secrets
+                  key: sql-password
           ports:
             - name: http
               containerPort: {{ .Values.service.targetPort }}

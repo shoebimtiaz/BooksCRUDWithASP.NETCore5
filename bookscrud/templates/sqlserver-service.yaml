@@ -1,0 +1,17 @@
+{{- if .Values.sqlserver.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: sqlserver
+  labels:
+    {{- include "bookscrud.labels" . | nindent 4 }}
+    app.kubernetes.io/component: sqlserver
+spec:
+  selector:
+    app.kubernetes.io/name: {{ include "bookscrud.name" . }}
+    app.kubernetes.io/component: sqlserver
+  ports:
+    - name: mssql
+      port: 1433
+      targetPort: 1433
+{{- end }}

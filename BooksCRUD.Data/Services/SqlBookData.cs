@@ -1,23 +1,41 @@
 ﻿
 using BooksCRUD.Data.Models;
+using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Configuration;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
 using System.Linq;
-using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace BooksCRUD.Data.Services
 {
     public class SqlBookData : IBookData
     {
+        private const string BookListCacheKey = "books:all";
         private readonly IConfiguration _configuration;
+        private readonly IDistributedCache _cache;
+        private readonly DistributedCacheEntryOptions _cacheOptions;
 
-        public SqlBookData(IConfiguration configuration)
+        public SqlBookData(IConfiguration configuration, IDistributedCache cache)
         {
             _configuration = configuration;
+            _cache = cache;
+            _cacheOptions = new DistributedCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10),
+                SlidingExpiration = TimeSpan.FromMinutes(5)
+            };
+        }
+
+        private static string GetBookCacheKey(int id) => $"book:{id}";
+
+        private void InvalidateCache(int id)
+        {
+            _cache.Remove(GetBookCacheKey(id));
+            _cache.Remove(BookListCacheKey);
         }
 
         public void AddBook(Book book)
@@ -44,6 +62,7 @@ namespace BooksCRUD.Data.Services
                         command.ExecuteNonQuery();
 
                         book.Id = Convert.ToInt32(command.Parameters["@Id"].Value);
+                        InvalidateCache(book.Id);
                     }
                 }
             }
@@ -65,6 +84,7 @@ namespace BooksCRUD.Data.Services
                         command.CommandType = CommandType.StoredProcedure;
                         connection.Open();
                         command.ExecuteNonQuery();
+                        InvalidateCache(id);
                     }
                 }
             }
@@ -76,9 +96,17 @@ namespace BooksCRUD.Data.Services
 
         public Book GetById(int id)
         {
-            var book = new Book();
             try
             {
+                var cachedBook = _cache.GetString(GetBookCacheKey(id));
+                if (!string.IsNullOrEmpty(cachedBook))
+                {
+                    return JsonSerializer.Deserialize<Book>(cachedBook, new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true
+                    });
+                }
+
                 using (var connection = new SqlConnection(_configuration.GetConnectionString("BooksDb")))
                 {
                     using (var command = new SqlCommand("GetBookByIdStoredProcedure", connection))
@@ -88,12 +116,18 @@ namespace BooksCRUD.Data.Services
                         connection.Open();
                         using (SqlDataReader dr = command.ExecuteReader(CommandBehavior.CloseConnection))
                         {
-                            while (dr.Read())
+                            if (dr.Read())
                             {
-                                book.Id = Convert.ToInt32(dr["Id"].ToString());
-                                book.Name = dr["BookName"].ToString();
-                                book.Author = dr["Author"].ToString();
-                                book.Publisher = dr["Publisher"].ToString();
+                                var book = new Book
+                                {
+                                    Id = Convert.ToInt32(dr["Id"].ToString()),
+                                    Name = dr["BookName"].ToString(),
+                                    Author = dr["Author"].ToString(),
+                                    Publisher = dr["Publisher"].ToString()
+                                };
+
+                                _cache.SetString(GetBookCacheKey(id), JsonSerializer.Serialize(book), _cacheOptions);
+                                return book;
                             }
                         }
                     }
@@ -103,14 +137,24 @@ namespace BooksCRUD.Data.Services
             {
                 Console.WriteLine(ex.ToString());
             }
-            return book;
+
+            return new Book();
         }
 
         public IEnumerable<Book> GetAll()
         {
-            var bookList = new List<Book>();
             try
             {
+                var cachedBooks = _cache.GetString(BookListCacheKey);
+                if (!string.IsNullOrEmpty(cachedBooks))
+                {
+                    return JsonSerializer.Deserialize<List<Book>>(cachedBooks, new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true
+                    }).OrderBy(book => book.Author);
+                }
+
+                var bookList = new List<Book>();
                 using (var connection = new SqlConnection(_configuration.GetConnectionString("BooksDb")))
                 {
                     using (var command = new SqlCommand("GetBooksStoredProcedure", connection))
@@ -133,12 +177,17 @@ namespace BooksCRUD.Data.Services
                         }
                     }
                 }
+
+                var orderedBookList = bookList.OrderBy(book => book.Author).ToList();
+                _cache.SetString(BookListCacheKey, JsonSerializer.Serialize(orderedBookList), _cacheOptions);
+                return orderedBookList;
             }
             catch (Exception ex)
             {
                 Console.WriteLine(ex.ToString());
             }
-            return bookList.OrderBy(book => book.Author);
+
+            return new List<Book>();
         }
 
         public void Update(Book book)
@@ -156,6 +205,7 @@ namespace BooksCRUD.Data.Services
                         command.CommandType = CommandType.StoredProcedure;
                         connection.Open();
                         command.ExecuteNonQuery();
+                        InvalidateCache(book.Id);
                     }
                 }
             }
