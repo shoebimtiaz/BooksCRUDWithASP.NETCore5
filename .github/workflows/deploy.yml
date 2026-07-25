@@ -41,12 +41,15 @@ jobs:
           helm upgrade --install bookscrud ./bookscrud \
             --namespace default \
             --create-namespace \
-            --wait --timeout 20m \
+            --timeout 20m \
             --set image.repository=bookscrud \
             --set image.tag=$IMAGE_TAG \
             --set image.pullPolicy=IfNotPresent \
             --set secrets.sqlPassword=$SQL_PASSWORD \
             --set secrets.redisPassword=$REDIS_PASSWORD
+
+          kubectl get pods -A
+          kubectl get svc -A
 
       - name: Show deployment status
         if: always()
