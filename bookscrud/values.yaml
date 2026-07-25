@@ -9,7 +9,7 @@ replicaCount: 1
 image:
   repository: shoebimtiaz/bookscrud
   # This sets the image tag to the chart appVersion.
-  tag: cd8478b2f5addb5b1197e553dd0af91d088d7b5b
+  tag: 70629b451eaa2eb606e04cfc121b9ff1867c8f65
   # This sets the pull policy for images.
   pullPolicy: IfNotPresent
 
@@ -26,7 +26,7 @@ redis:
   replicaCount: 1
   image:
     repository: redis
-    tag: cd8478b2f5addb5b1197e553dd0af91d088d7b5b
+    tag: 70629b451eaa2eb606e04cfc121b9ff1867c8f65
     pullPolicy: IfNotPresent
   service:
     port: 6379
@@ -36,7 +36,7 @@ sqlserver:
   enabled: true
   image:
     repository: mcr.microsoft.com/mssql/server
-    tag: cd8478b2f5addb5b1197e553dd0af91d088d7b5b
+    tag: 70629b451eaa2eb606e04cfc121b9ff1867c8f65
     pullPolicy: IfNotPresent
   persistence:
     enabled: true
