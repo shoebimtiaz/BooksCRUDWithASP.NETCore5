@@ -32,6 +32,16 @@ spec:
                   key: sql-password
           ports:
             - containerPort: 1433
+          readinessProbe:
+            tcpSocket:
+              port: 1433
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 1433
+            initialDelaySeconds: 30
+            periodSeconds: 20
           volumeMounts:
             - name: mssql-data
               mountPath: /var/opt/mssql
