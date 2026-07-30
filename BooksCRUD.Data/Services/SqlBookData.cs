@@ -2,13 +2,13 @@
 using BooksCRUD.Data.Models;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
 using System.Linq;
 using System.Text.Json;
-using System.Threading.Tasks;
 
 namespace BooksCRUD.Data.Services
 {
@@ -17,12 +17,14 @@ namespace BooksCRUD.Data.Services
         private const string BookListCacheKey = "books:all";
         private readonly IConfiguration _configuration;
         private readonly IDistributedCache _cache;
+        private readonly ILogger<SqlBookData> _logger;
         private readonly DistributedCacheEntryOptions _cacheOptions;
 
-        public SqlBookData(IConfiguration configuration, IDistributedCache cache)
+        public SqlBookData(IConfiguration configuration, IDistributedCache cache, ILogger<SqlBookData> logger)
         {
             _configuration = configuration;
             _cache = cache;
+            _logger = logger;
             _cacheOptions = new DistributedCacheEntryOptions
             {
                 AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10),
@@ -34,6 +36,7 @@ namespace BooksCRUD.Data.Services
 
         private void InvalidateCache(int id)
         {
+            _logger.LogDebug("Invalidating cache for book {BookId} and book list", id);
             _cache.Remove(GetBookCacheKey(id));
             _cache.Remove(BookListCacheKey);
         }
@@ -63,12 +66,15 @@ namespace BooksCRUD.Data.Services
 
                         book.Id = Convert.ToInt32(command.Parameters["@Id"].Value);
                         InvalidateCache(book.Id);
+                        _logger.LogInformation(
+                            "Book created in database with {BookId}: {BookName} by {Author}, published by {Publisher}",
+                            book.Id, book.Name, book.Author, book.Publisher);
                     }
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.ToString());
+                _logger.LogError(ex, "Failed to create book {BookName} by {Author}", book.Name, book.Author);
             }
         }
 
@@ -85,12 +91,13 @@ namespace BooksCRUD.Data.Services
                         connection.Open();
                         command.ExecuteNonQuery();
                         InvalidateCache(id);
+                        _logger.LogInformation("Book {BookId} deleted from database", id);
                     }
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.ToString());
+                _logger.LogError(ex, "Failed to delete book {BookId}", id);
             }
         }
 
@@ -101,11 +108,14 @@ namespace BooksCRUD.Data.Services
                 var cachedBook = _cache.GetString(GetBookCacheKey(id));
                 if (!string.IsNullOrEmpty(cachedBook))
                 {
+                    _logger.LogDebug("Cache hit for book {BookId}", id);
                     return JsonSerializer.Deserialize<Book>(cachedBook, new JsonSerializerOptions
                     {
                         PropertyNameCaseInsensitive = true
                     });
                 }
+
+                _logger.LogDebug("Cache miss for book {BookId}, querying database", id);
 
                 using (var connection = new SqlConnection(_configuration.GetConnectionString("BooksDb")))
                 {
@@ -127,15 +137,18 @@ namespace BooksCRUD.Data.Services
                                 };
 
                                 _cache.SetString(GetBookCacheKey(id), JsonSerializer.Serialize(book), _cacheOptions);
+                                _logger.LogDebug("Book {BookId} cached after database lookup", id);
                                 return book;
                             }
                         }
                     }
                 }
+
+                _logger.LogWarning("Book {BookId} not found in database", id);
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.ToString());
+                _logger.LogError(ex, "Failed to retrieve book {BookId}", id);
             }
 
             return new Book();
@@ -148,11 +161,15 @@ namespace BooksCRUD.Data.Services
                 var cachedBooks = _cache.GetString(BookListCacheKey);
                 if (!string.IsNullOrEmpty(cachedBooks))
                 {
-                    return JsonSerializer.Deserialize<List<Book>>(cachedBooks, new JsonSerializerOptions
+                    var cached = JsonSerializer.Deserialize<List<Book>>(cachedBooks, new JsonSerializerOptions
                     {
                         PropertyNameCaseInsensitive = true
-                    }).OrderBy(book => book.Author);
+                    });
+                    _logger.LogDebug("Cache hit for book list ({BookCount} books)", cached.Count);
+                    return cached.OrderBy(book => book.Author);
                 }
+
+                _logger.LogDebug("Cache miss for book list, querying database");
 
                 var bookList = new List<Book>();
                 using (var connection = new SqlConnection(_configuration.GetConnectionString("BooksDb")))
@@ -180,11 +197,12 @@ namespace BooksCRUD.Data.Services
 
                 var orderedBookList = bookList.OrderBy(book => book.Author).ToList();
                 _cache.SetString(BookListCacheKey, JsonSerializer.Serialize(orderedBookList), _cacheOptions);
+                _logger.LogDebug("Book list cached after database lookup ({BookCount} books)", orderedBookList.Count);
                 return orderedBookList;
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.ToString());
+                _logger.LogError(ex, "Failed to retrieve book list");
             }
 
             return new List<Book>();
@@ -206,16 +224,16 @@ namespace BooksCRUD.Data.Services
                         connection.Open();
                         command.ExecuteNonQuery();
                         InvalidateCache(book.Id);
+                        _logger.LogInformation(
+                            "Book {BookId} updated in database: {BookName} by {Author}, published by {Publisher}",
+                            book.Id, book.Name, book.Author, book.Publisher);
                     }
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.ToString());
-
+                _logger.LogError(ex, "Failed to update book {BookId}", book.Id);
             }
         }
     }
-
 }
-
